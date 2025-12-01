@@ -5,12 +5,14 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
 import { X } from '@phosphor-icons/react'
+import { toast } from 'sonner'
 import type { Server } from '@/lib/types'
+import { validateServerForm } from '@/lib/validation'
 
 interface ServerFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSubmit: (data: Omit<Server, 'id' | 'createdAt' | 'updatedAt'>) => void
+  onSubmit: (data: Omit<Server, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>) => void
   server?: Server
 }
 
@@ -19,16 +21,37 @@ export function ServerFormDialog({ open, onOpenChange, onSubmit, server }: Serve
   const [ipAddress, setIpAddress] = useState(server?.ipAddress || '')
   const [tagInput, setTagInput] = useState('')
   const [tags, setTags] = useState<string[]>(server?.tags || [])
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!hostname.trim() || !ipAddress.trim()) return
-
-    onSubmit({
+    const formData = {
       hostname: hostname.trim(),
       ipAddress: ipAddress.trim(),
-      tags,
+      tags
+    }
+
+    const result = validateServerForm(formData)
+    
+    if (!result.success) {
+      const newErrors: Record<string, string> = {}
+      result.error.errors.forEach(err => {
+        const field = err.path[0] as string
+        newErrors[field] = err.message
+      })
+      setErrors(newErrors)
+      toast.error('Validation failed', {
+        description: 'Please correct the errors in the form'
+      })
+      return
+    }
+
+    setErrors({})
+    onSubmit({
+      hostname: result.data.hostname,
+      ipAddress: result.data.ipAddress,
+      tags: result.data.tags,
       status: server?.status || 'UNKNOWN'
     })
 
@@ -39,10 +62,26 @@ export function ServerFormDialog({ open, onOpenChange, onSubmit, server }: Serve
   }
 
   const addTag = () => {
-    if (tagInput.trim() && !tags.includes(tagInput.trim())) {
-      setTags([...tags, tagInput.trim()])
-      setTagInput('')
+    const trimmedTag = tagInput.trim()
+    if (!trimmedTag) return
+    
+    if (tags.includes(trimmedTag)) {
+      toast.error('Tag already exists')
+      return
     }
+
+    if (trimmedTag.length > 50) {
+      toast.error('Tag is too long (max 50 characters)')
+      return
+    }
+
+    if (/[;&|`$()<>\\'"{}[\]]/.test(trimmedTag)) {
+      toast.error('Tag contains invalid characters')
+      return
+    }
+
+    setTags([...tags, trimmedTag])
+    setTagInput('')
   }
 
   const removeTag = (tag: string) => {
@@ -74,9 +113,17 @@ export function ServerFormDialog({ open, onOpenChange, onSubmit, server }: Serve
                 id="hostname"
                 placeholder="web-server-01"
                 value={hostname}
-                onChange={(e) => setHostname(e.target.value)}
-                required
+                onChange={(e) => {
+                  setHostname(e.target.value)
+                  if (errors.hostname) {
+                    setErrors(prev => ({ ...prev, hostname: '' }))
+                  }
+                }}
+                className={errors.hostname ? 'border-destructive' : ''}
               />
+              {errors.hostname && (
+                <p className="text-xs text-destructive">{errors.hostname}</p>
+              )}
             </div>
             
             <div className="grid gap-2">
@@ -84,12 +131,18 @@ export function ServerFormDialog({ open, onOpenChange, onSubmit, server }: Serve
               <Input
                 id="ip"
                 placeholder="192.168.1.100"
-                className="font-mono"
+                className={`font-mono ${errors.ipAddress ? 'border-destructive' : ''}`}
                 value={ipAddress}
-                onChange={(e) => setIpAddress(e.target.value)}
-                pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$"
-                required
+                onChange={(e) => {
+                  setIpAddress(e.target.value)
+                  if (errors.ipAddress) {
+                    setErrors(prev => ({ ...prev, ipAddress: '' }))
+                  }
+                }}
               />
+              {errors.ipAddress && (
+                <p className="text-xs text-destructive">{errors.ipAddress}</p>
+              )}
             </div>
             
             <div className="grid gap-2">

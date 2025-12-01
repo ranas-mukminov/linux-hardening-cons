@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import type { Job, Server } from '@/lib/types'
 import { JobStatusBadge } from './JobStatusBadge'
+import { getJobStatus } from '@/lib/auth'
 import { formatDistanceToNow, format } from 'date-fns'
 import { Info, Warning, XCircle, CheckCircle } from '@phosphor-icons/react'
 
@@ -16,6 +17,8 @@ interface JobDetailsDialogProps {
 
 export function JobDetailsDialog({ open, onOpenChange, job, server }: JobDetailsDialogProps) {
   if (!job || !server) return null
+
+  const effectiveStatus = getJobStatus(job)
 
   const logIcons = {
     info: Info,
@@ -44,12 +47,26 @@ export function JobDetailsDialog({ open, onOpenChange, job, server }: JobDetails
                 <span>{format(job.createdAt, 'PPp')}</span>
               </DialogDescription>
             </div>
-            <JobStatusBadge status={job.status} />
+            <JobStatusBadge status={effectiveStatus} />
           </div>
         </DialogHeader>
 
         <div className="space-y-4">
-          {job.status === 'FAILED' && job.error && (
+          {effectiveStatus === 'TIMED_OUT' && (
+            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50">
+              <div className="flex items-start gap-2">
+                <Warning size={20} className="text-destructive mt-0.5" weight="bold" />
+                <div>
+                  <h4 className="font-semibold text-destructive">Job Timed Out</h4>
+                  <p className="text-sm text-destructive/90 mt-1">
+                    This job has been running for more than 20 minutes and has exceeded the maximum execution time.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {effectiveStatus === 'FAILED' && job.error && (
             <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/50">
               <div className="flex items-start gap-2">
                 <XCircle size={20} className="text-destructive mt-0.5" weight="bold" />
@@ -61,7 +78,7 @@ export function JobDetailsDialog({ open, onOpenChange, job, server }: JobDetails
             </div>
           )}
 
-          {job.status === 'COMPLETED' && job.result && (
+          {effectiveStatus === 'COMPLETED' && job.result && (
             <>
               <div className="grid grid-cols-4 gap-4">
                 <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/50">

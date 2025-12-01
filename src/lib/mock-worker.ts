@@ -126,7 +126,7 @@ export async function simulateWorkerExecution(
   onUpdate({ status: 'PICKED_UP', updatedAt: Date.now() })
   await delay(1000)
   
-  onUpdate({ status: 'RUNNING', updatedAt: Date.now() })
+  onUpdate({ status: 'RUNNING', startedAt: Date.now(), updatedAt: Date.now() })
   await delay(500)
   
   const isAudit = job.type === 'AUDIT'

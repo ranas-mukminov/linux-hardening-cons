@@ -3,6 +3,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { JobStatusBadge } from './JobStatusBadge'
 import { Badge } from '@/components/ui/badge'
 import type { Job, JobType } from '@/lib/types'
+import { getJobStatus } from '@/lib/auth'
 import { ShieldCheck, LockKey, ArrowCounterClockwise } from '@phosphor-icons/react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -33,6 +34,7 @@ export function JobCard({ job, serverHostname, onClick }: JobCardProps) {
 
   const config = jobTypeConfig[job.type]
   const Icon = config.icon
+  const effectiveStatus = getJobStatus(job)
 
   return (
     <Card 
@@ -54,7 +56,7 @@ export function JobCard({ job, serverHostname, onClick }: JobCardProps) {
               </p>
             </div>
           </div>
-          <JobStatusBadge status={job.status} />
+          <JobStatusBadge status={effectiveStatus} />
         </div>
       </CardHeader>
       <CardContent>
@@ -62,14 +64,14 @@ export function JobCard({ job, serverHostname, onClick }: JobCardProps) {
           <span>
             {formatDistanceToNow(job.createdAt, { addSuffix: true })}
           </span>
-          {job.status === 'COMPLETED' && job.result && (
+          {effectiveStatus === 'COMPLETED' && job.result && (
             <Badge variant="outline" className="text-xs">
               {job.result.totalFindings} findings
             </Badge>
           )}
-          {job.status === 'FAILED' && (
+          {(effectiveStatus === 'FAILED' || effectiveStatus === 'TIMED_OUT') && (
             <Badge variant="outline" className="border-destructive/50 text-destructive text-xs">
-              Error
+              {effectiveStatus === 'TIMED_OUT' ? 'Timeout' : 'Error'}
             </Badge>
           )}
         </div>

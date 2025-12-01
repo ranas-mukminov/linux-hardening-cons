@@ -51,11 +51,14 @@ The application manages CRUD operations for servers, orchestrates job queuing, a
 
 - **Empty States**: Welcoming empty state for new organizations with clear "Add Server" CTA
 - **Job Failures**: Failed jobs show error details in red with retry button and clear error messages
+- **Job Timeouts**: Jobs running longer than 20 minutes automatically display as "TIMED OUT" with warning indicator
 - **Concurrent Jobs**: Multiple jobs on same server show queued state, preventing confusion about execution order
 - **Network Issues**: Polling gracefully handles failures, shows connection status indicator
 - **No Pending Jobs**: Worker polling returns empty array, doesn't error
-- **Orphaned Jobs**: Jobs stuck in RUNNING for >10 minutes show warning indicator
-- **Invalid Data**: Form validation prevents invalid IPs, blank hostnames, or duplicate servers
+- **Orphaned Jobs**: Jobs stuck in RUNNING for >20 minutes show timeout indicator
+- **Invalid Data**: Strict Zod validation prevents command injection - rejects hostnames/IPs with special characters like `;`, `&`, `|`, backticks, `$`, etc.
+- **Cross-Organization Access**: All data queries filtered by organization ID - users can only see their own servers and jobs
+- **Unauthenticated Access**: Loading screen shown until organization ID retrieved from authenticated user
 
 ## Design Direction
 

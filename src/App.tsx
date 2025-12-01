@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { Plus, MagnifyingGlass, ShieldWarning } from '@phosphor-icons/react'
 import type { Server, Job, JobType, ServerStatus } from '@/lib/types'
 import { simulateWorkerExecution } from '@/lib/mock-worker'
+import { getCurrentOrganizationId, getJobStatus } from '@/lib/auth'
 import { ulid } from 'ulid'
 
 function App() {
@@ -21,6 +22,16 @@ function App() {
   const [isServerDetailsOpen, setIsServerDetailsOpen] = useState(false)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isJobDetailsOpen, setIsJobDetailsOpen] = useState(false)
+  const [organizationId, setOrganizationId] = useState<string | null>(null)
+
+  useEffect(() => {
+    getCurrentOrganizationId().then(setOrganizationId).catch(err => {
+      console.error('Failed to get organization ID:', err)
+      toast.error('Authentication failed', {
+        description: 'Unable to determine your organization'
+      })
+    })
+  }, [])
 
   useEffect(() => {
     if (!jobs) return
@@ -35,10 +46,18 @@ function App() {
     return () => clearInterval(interval)
   }, [jobs, setJobs])
 
-  const handleAddServer = (serverData: Omit<Server, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleAddServer = async (serverData: Omit<Server, 'id' | 'createdAt' | 'updatedAt' | 'organizationId'>) => {
+    if (!organizationId) {
+      toast.error('Not authenticated', {
+        description: 'Please refresh the page'
+      })
+      return
+    }
+
     const newServer: Server = {
       ...serverData,
       id: ulid(),
+      organizationId,
       createdAt: Date.now(),
       updatedAt: Date.now()
     }
@@ -51,8 +70,9 @@ function App() {
   }
 
   const handleDeleteServer = (serverId: string) => {
-    if (!servers) return
-    const server = servers.find(s => s.id === serverId)
+    if (!servers || !organizationId) return
+    
+    const server = servers.find(s => s.id === serverId && s.organizationId === organizationId)
     if (!server) return
 
     if (confirm(`Are you sure you want to remove ${server.hostname}?`)) {
@@ -65,12 +85,13 @@ function App() {
   }
 
   const createJob = (serverId: string, type: JobType) => {
-    if (!servers) return
-    const server = servers.find(s => s.id === serverId)
+    if (!servers || !organizationId) return
+    const server = servers.find(s => s.id === serverId && s.organizationId === organizationId)
     if (!server) return
 
     const newJob: Job = {
       id: ulid(),
+      organizationId,
       serverId,
       type,
       status: 'PENDING',
@@ -101,13 +122,13 @@ function App() {
             
             setServers(currentServers => 
               (currentServers || []).map(s => 
-                s.id === serverId ? { ...s, status: severity } : s
+                s.id === serverId && s.organizationId === organizationId ? { ...s, status: severity } : s
               )
             )
           } else if (updatedJob.type === 'HARDEN') {
             setServers(currentServers => 
               (currentServers || []).map(s => 
-                s.id === serverId ? { ...s, status: 'SECURE' } : s
+                s.id === serverId && s.organizationId === organizationId ? { ...s, status: 'SECURE' } : s
               )
             )
           }
@@ -134,7 +155,10 @@ function App() {
     createJob(serverId, 'HARDEN')
   }
 
-  const filteredServers = (servers || []).filter(server => {
+  const userServers = (servers || []).filter(s => s.organizationId === organizationId)
+  const userJobs = (jobs || []).filter(j => j.organizationId === organizationId)
+
+  const filteredServers = userServers.filter(server => {
     const query = searchQuery.toLowerCase()
     return (
       server.hostname.toLowerCase().includes(query) ||
@@ -143,13 +167,29 @@ function App() {
     )
   })
 
-  const recentJobs = (jobs || [])
+  const recentJobs = userJobs
     .sort((a, b) => b.createdAt - a.createdAt)
     .slice(0, 5)
 
-  const activeJobsCount = (jobs || []).filter(j => ['PENDING', 'PICKED_UP', 'RUNNING'].includes(j.status)).length
-  const vulnerableCount = (servers || []).filter(s => s.status === 'VULNERABLE').length
-  const secureCount = (servers || []).filter(s => s.status === 'SECURE').length
+  const activeJobsCount = userJobs.filter(j => {
+    const status = getJobStatus(j)
+    return ['PENDING', 'PICKED_UP', 'RUNNING'].includes(status)
+  }).length
+  
+  const vulnerableCount = userServers.filter(s => s.status === 'VULNERABLE').length
+  const secureCount = userServers.filter(s => s.status === 'SECURE').length
+
+  if (!organizationId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <ShieldWarning size={64} className="mx-auto mb-4 text-muted-foreground" />
+          <h2 className="text-xl font-semibold mb-2">Loading...</h2>
+          <p className="text-muted-foreground">Authenticating your session</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -181,7 +221,7 @@ function App() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="p-6 rounded-lg bg-card border border-border">
             <div className="text-sm text-muted-foreground mb-1">Total Servers</div>
-            <div className="text-3xl font-bold">{(servers || []).length}</div>
+            <div className="text-3xl font-bold">{userServers.length}</div>
           </div>
           <div className="p-6 rounded-lg bg-card border border-border">
             <div className="text-sm text-muted-foreground mb-1">Vulnerable</div>
@@ -208,7 +248,7 @@ function App() {
           </div>
         </div>
 
-        {filteredServers.length === 0 && (servers || []).length === 0 && (
+        {filteredServers.length === 0 && userServers.length === 0 && (
           <div className="text-center py-16 border-2 border-dashed border-border rounded-lg">
             <ShieldWarning size={64} className="mx-auto mb-4 text-muted-foreground opacity-50" />
             <h3 className="text-xl font-semibold mb-2">No Servers Yet</h3>
@@ -222,7 +262,7 @@ function App() {
           </div>
         )}
 
-        {filteredServers.length === 0 && (servers || []).length > 0 && (
+        {filteredServers.length === 0 && userServers.length > 0 && (
           <div className="text-center py-16">
             <p className="text-muted-foreground">No servers match your search</p>
           </div>
@@ -255,7 +295,7 @@ function App() {
         open={isServerDetailsOpen}
         onOpenChange={setIsServerDetailsOpen}
         server={selectedServer}
-        jobs={jobs || []}
+        jobs={userJobs}
         onRunAudit={() => selectedServer && handleRunAudit(selectedServer.id)}
         onRunHarden={() => selectedServer && handleRunHarden(selectedServer.id)}
         onViewJob={(job) => {
@@ -268,7 +308,7 @@ function App() {
         open={isJobDetailsOpen}
         onOpenChange={setIsJobDetailsOpen}
         job={selectedJob}
-        server={selectedServer || (servers || []).find(s => s.id === selectedJob?.serverId) || null}
+        server={selectedServer || userServers.find(s => s.id === selectedJob?.serverId) || null}
       />
     </div>
   )

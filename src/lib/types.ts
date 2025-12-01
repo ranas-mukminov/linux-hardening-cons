@@ -2,10 +2,11 @@ export type ServerStatus = 'SECURE' | 'VULNERABLE' | 'UNKNOWN'
 
 export type JobType = 'AUDIT' | 'HARDEN' | 'ROLLBACK'
 
-export type JobStatus = 'PENDING' | 'PICKED_UP' | 'RUNNING' | 'COMPLETED' | 'FAILED'
+export type JobStatus = 'PENDING' | 'PICKED_UP' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'TIMED_OUT'
 
 export interface Server {
   id: string
+  organizationId: string
   hostname: string
   ipAddress: string
   tags: string[]
@@ -16,6 +17,7 @@ export interface Server {
 
 export interface Job {
   id: string
+  organizationId: string
   serverId: string
   type: JobType
   status: JobStatus
@@ -25,6 +27,7 @@ export interface Job {
   createdAt: number
   updatedAt: number
   completedAt?: number
+  startedAt?: number
 }
 
 export interface LogEntry {

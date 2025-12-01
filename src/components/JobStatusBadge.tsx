@@ -32,6 +32,11 @@ export function JobStatusBadge({ status }: JobStatusBadgeProps) {
       label: 'Failed',
       icon: XCircle,
       className: 'bg-destructive/20 text-destructive border-destructive/50'
+    },
+    TIMED_OUT: {
+      label: 'Timed Out',
+      icon: Warning,
+      className: 'bg-destructive/20 text-destructive border-destructive/50'
     }
   }
 
