@@ -7,10 +7,11 @@ import { ServerFormDialog } from '@/components/ServerFormDialog'
 import { ServerDetailsDialog } from '@/components/ServerDetailsDialog'
 import { JobDetailsDialog } from '@/components/JobDetailsDialog'
 import { toast } from 'sonner'
-import { Plus, MagnifyingGlass, ShieldWarning } from '@phosphor-icons/react'
+import { Plus, MagnifyingGlass, ShieldWarning, Lightning } from '@phosphor-icons/react'
 import type { Server, Job, JobType, ServerStatus } from '@/lib/types'
 import { simulateWorkerExecution } from '@/lib/mock-worker'
 import { getCurrentOrganizationId, getJobStatus } from '@/lib/auth'
+import { generateDemoServers, generateDemoJobs } from '@/lib/demo-data'
 import { ulid } from 'ulid'
 
 function App() {
@@ -23,6 +24,7 @@ function App() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isJobDetailsOpen, setIsJobDetailsOpen] = useState(false)
   const [organizationId, setOrganizationId] = useState<string | null>(null)
+  const [isLoadingDemo, setIsLoadingDemo] = useState(false)
 
   useEffect(() => {
     getCurrentOrganizationId().then(setOrganizationId).catch(err => {
@@ -155,6 +157,49 @@ function App() {
     createJob(serverId, 'HARDEN')
   }
 
+  const handleLoadDemoData = async () => {
+    if (!organizationId) {
+      toast.error('Not authenticated', {
+        description: 'Please refresh the page'
+      })
+      return
+    }
+
+    setIsLoadingDemo(true)
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      const demoServers = generateDemoServers(organizationId, 8)
+      const demoJobs = generateDemoJobs(organizationId, demoServers, 12)
+
+      setServers(current => [...(current || []), ...demoServers])
+      setJobs(current => [...(current || []), ...demoJobs])
+
+      toast.success('Demo data loaded', {
+        description: `Added ${demoServers.length} servers and ${demoJobs.length} jobs`
+      })
+    } catch (error) {
+      toast.error('Failed to load demo data', {
+        description: error instanceof Error ? error.message : 'Unknown error'
+      })
+    } finally {
+      setIsLoadingDemo(false)
+    }
+  }
+
+  const handleClearAllData = async () => {
+    if (!organizationId) return
+
+    if (confirm('Are you sure you want to clear ALL servers and jobs? This cannot be undone.')) {
+      setServers([])
+      setJobs([])
+      toast.success('All data cleared', {
+        description: 'Your workspace has been reset'
+      })
+    }
+  }
+
   const userServers = (servers || []).filter(s => s.organizationId === organizationId)
   const userJobs = (jobs || []).filter(j => j.organizationId === organizationId)
 
@@ -195,24 +240,45 @@ function App() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/20">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 rounded-lg bg-primary/20 flex-shrink-0">
                 <ShieldWarning size={28} weight="duotone" className="text-primary" />
               </div>
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight">
+              <div className="min-w-0">
+                <h1 className="text-xl md:text-2xl font-semibold tracking-tight truncate">
                   Linux Hardening Console
                 </h1>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground hidden sm:block">
                   Control Plane • Security Operations
                 </p>
               </div>
             </div>
-            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-              <Plus size={20} weight="bold" />
-              Add Server
-            </Button>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Button 
+                onClick={handleLoadDemoData} 
+                variant="outline" 
+                className="gap-2 hidden sm:flex"
+                disabled={isLoadingDemo}
+              >
+                <Lightning size={18} weight="fill" className="text-accent" />
+                <span className="hidden lg:inline">{isLoadingDemo ? 'Loading...' : 'Load Demo Data'}</span>
+              </Button>
+              <Button 
+                onClick={handleLoadDemoData} 
+                variant="outline" 
+                size="icon"
+                className="sm:hidden"
+                disabled={isLoadingDemo}
+                title="Load Demo Data"
+              >
+                <Lightning size={18} weight="fill" className="text-accent" />
+              </Button>
+              <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+                <Plus size={20} weight="bold" />
+                <span className="hidden sm:inline">Add Server</span>
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -255,10 +321,21 @@ function App() {
             <p className="text-muted-foreground mb-6">
               Add your first server to start monitoring its security posture
             </p>
-            <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
-              <Plus size={20} weight="bold" />
-              Add Your First Server
-            </Button>
+            <div className="flex items-center justify-center gap-3">
+              <Button onClick={() => setIsAddDialogOpen(true)} className="gap-2">
+                <Plus size={20} weight="bold" />
+                Add Your First Server
+              </Button>
+              <Button 
+                onClick={handleLoadDemoData} 
+                variant="outline" 
+                className="gap-2"
+                disabled={isLoadingDemo}
+              >
+                <Lightning size={18} weight="fill" className="text-accent" />
+                {isLoadingDemo ? 'Loading...' : 'Load Demo Data'}
+              </Button>
+            </div>
           </div>
         )}
 
