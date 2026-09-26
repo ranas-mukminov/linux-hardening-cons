@@ -70,7 +70,7 @@
         "tailwind-merge": "^3.0.2",
         "three": "^0.175.0",
         "tw-animate-css": "^1.2.4",
-        "uuid": "^11.1.0",
+        "uuid": "^11.1.1",
         "vaul": "^1.1.2",
         "zod": "^3.25.76"
     },
@@ -87,11 +87,40 @@
         "tailwindcss": "^4.1.11",
         "typescript": "~5.7.2",
         "typescript-eslint": "^8.38.0",
-        "vite": "^6.4.1"
+        "vite": "^6.4.3"
     },
     "workspaces": {
         "packages": [
             "packages/*"
         ]
+    },
+    "overrides": {
+        "tar": "7.5.22",
+        "vitest": "3.2.6",
+        "flatted": "3.4.4",
+        "form-data": "4.0.6",
+        "js-yaml": "4.3.2",
+        "lodash": "4.18.1",
+        "nanoid": "3.3.19",
+        "postcss": "8.5.28",
+        "rollup": "4.59.0",
+        "serialize-javascript": "7.0.5",
+        "ws": "8.21.0",
+        "vite": "$vite",
+        "brace-expansion@1": "1.1.21",
+        "brace-expansion@2": "2.1.7",
+        "minimatch@3": "3.1.5",
+        "minimatch@9": "9.0.9",
+        "picomatch@2": "2.3.2",
+        "picomatch@4": "4.0.7",
+        "qs": "6.16.0",
+        "uuid": "$uuid",
+        "yaml": "2.8.3",
+        "ajv": "6.14.0",
+        "@eslint/plugin-kit": "0.3.4",
+        "@humanfs/node": "0.16.8",
+        "@vitest/mocker": "3.2.6",
+        "body-parser@1": "1.20.6",
+        "body-parser@2": "2.3.0"
     }
 }
