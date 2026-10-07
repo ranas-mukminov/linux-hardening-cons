@@ -46,18 +46,30 @@ All worker API endpoints MUST verify this secret before processing requests.
 **Implementation Template**:
 ```typescript
 // src/api/worker.ts (example for future implementation)
+import { createHash, timingSafeEqual } from 'node:crypto'
+import type { Request } from 'express'
 
-const WORKER_API_SECRET = process.env.WORKER_API_SECRET
+const WORKER_API_SECRET = process.env.WORKER_API_SECRET ?? ''
+
+// Fail closed at startup: an unset or short secret must never mean "no auth".
+if (WORKER_API_SECRET.length < 32) {
+  throw new Error('WORKER_API_SECRET must be set to a random value of at least 32 characters')
+}
+
+const sha256 = (value: string) => createHash('sha256').update(value).digest()
+const expectedDigest = sha256(WORKER_API_SECRET)
 
 function authenticateWorker(req: Request): boolean {
-  const authHeader = req.headers.get('Authorization')
-  
+  const authHeader = req.get('authorization')
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return false
   }
-  
-  const token = authHeader.substring(7)
-  return token === WORKER_API_SECRET
+
+  const token = authHeader.slice('Bearer '.length)
+  // Compare fixed-length digests in constant time so response timing
+  // doesn't leak how much of the token matched.
+  return timingSafeEqual(sha256(token), expectedDigest)
 }
 
 // Example endpoint
@@ -77,6 +89,7 @@ app.post('/api/worker/jobs/pickup', async (req, res) => {
 
 **Security Requirements**:
 - Never hardcode the secret - always use `process.env.WORKER_API_SECRET`
+- Refuse to start when the secret is missing or short, and compare tokens with `crypto.timingSafeEqual`, never `===`
 - Use HTTPS only in production
 - Rotate secrets regularly
 - Log failed authentication attempts
