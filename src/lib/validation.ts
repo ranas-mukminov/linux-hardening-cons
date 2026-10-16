@@ -1,11 +1,18 @@
 import { z } from 'zod'
 
 const HOSTNAME_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$/
-const IPV4_REGEX = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+// Octets without leading zeros: inet_aton() (used by ssh, ping, curl, ...) reads
+// "010.0.0.1" as octal, i.e. 8.0.0.1, so the stored address and the host that
+// actually gets contacted would differ.
+const IPV4_OCTET = '(?:25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])'
+const IPV4_REGEX = new RegExp(`^(?:${IPV4_OCTET}\\.){3}${IPV4_OCTET}$`)
+// Allowlist for tags: letters, digits and . _ : - (no whitespace, control
+// characters, globs or shell metacharacters).
+const TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/
 
 export const hostnameSchema = z.string()
   .min(1, 'Hostname cannot be empty')
-  .max(255, 'Hostname is too long')
+  .max(253, 'Hostname is too long')
   .refine(
     (val) => !/[;&|`$()<>\\'"{}[\]]/.test(val),
     'Hostname contains invalid characters that could lead to command injection'
@@ -45,8 +52,8 @@ export const tagSchema = z.string()
   .min(1, 'Tag cannot be empty')
   .max(50, 'Tag is too long')
   .refine(
-    (val) => !/[;&|`$()<>\\'"{}[\]]/.test(val),
-    'Tag contains invalid characters that could lead to command injection'
+    (val) => TAG_REGEX.test(val),
+    'Tags may only contain letters, digits, ".", "_", ":" and "-"'
   )
 
 export const serverFormSchema = z.object({

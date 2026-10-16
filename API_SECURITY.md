@@ -12,8 +12,8 @@ All user inputs for hostname and IP address fields are strictly validated using 
 
 **Protected Fields**:
 - **Hostname**: Must match valid hostname pattern, reject special characters `;&|` ` $()<>\'"{}[]`
-- **IP Address**: Must be valid IPv4 format (0-255 for each octet), reject special characters
-- **Tags**: Max 50 characters, reject special characters
+- **IP Address**: Must be valid dotted-decimal IPv4 (0-255 per octet, no leading zeros, since `inet_aton` reads `010.0.0.1` as octal `8.0.0.1`), reject special characters
+- **Tags**: Max 50 characters, allowlist of letters, digits, `.`, `_`, `:` and `-` (no whitespace or control characters)
 
 **Frontend Validation**: Implemented in `src/components/ServerFormDialog.tsx`
 
@@ -184,7 +184,7 @@ When implementing a real backend, ensure:
 
 ## Testing Security
 
-**Input Validation Tests**:
+**Input Validation Tests** (`npm test`, see `src/lib/validation.test.ts`):
 ```typescript
 // Test malicious inputs are rejected
 expect(hostnameSchema.safeParse('test; rm -rf /')).toHaveError()

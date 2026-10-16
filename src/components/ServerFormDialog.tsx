@@ -7,7 +7,7 @@ import { useState } from 'react'
 import { X } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Server } from '@/lib/types'
-import { validateServerForm } from '@/lib/validation'
+import { tagSchema, validateServerForm } from '@/lib/validation'
 
 interface ServerFormDialogProps {
   open: boolean
@@ -70,13 +70,9 @@ export function ServerFormDialog({ open, onOpenChange, onSubmit, server }: Serve
       return
     }
 
-    if (trimmedTag.length > 50) {
-      toast.error('Tag is too long (max 50 characters)')
-      return
-    }
-
-    if (/[;&|`$()<>\\'"{}[\]]/.test(trimmedTag)) {
-      toast.error('Tag contains invalid characters')
+    const parsed = tagSchema.safeParse(trimmedTag)
+    if (!parsed.success) {
+      toast.error(parsed.error.errors[0]?.message ?? 'Invalid tag')
       return
     }
 
